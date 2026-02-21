@@ -20,7 +20,7 @@ interface DashboardClientProps {
         gastos: number
         balance: number
         chartData: any[]
-        categoryData: { nombre: string; emoji: string; total: number }[]
+        categoryData: { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" }[]
     }
     initialTransactions: {
         data: any[]
@@ -176,26 +176,57 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 <SummaryCard title="Balance Total" amount={stats.balance} icon={Wallet} type="balance" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* ── Fila de Gráficos ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <BarChartComponent data={stats.chartData} />
-                <PieChartComponent data={stats.categoryData || []} />
-                {/* Card de totales por categoría */}
-                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col">
-                    <div className="px-6 pt-5 pb-3 border-b border-slate-50">
-                        <h3 className="text-slate-800 font-semibold tracking-tight text-base">Totales por Categoría</h3>
+                <PieChartComponent data={(stats.categoryData || []).filter(c => c.tipo === "gasto")} />
+            </div>
+
+            {/* ── Fila de Listas por Categoría ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Ingresos por Categoría */}
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full">
+                    <div className="px-6 pt-5 pb-3 border-b border-slate-50 flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-green-600" />
+                        <h3 className="text-slate-800 font-semibold tracking-tight text-base">Ingresos por Categoría</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[300px]">
-                        {(stats.categoryData || []).length === 0 ? (
-                            <p className="text-slate-400 text-sm text-center py-8">Sin datos para el período</p>
+                        {(stats.categoryData || []).filter(c => c.tipo === "ingreso").length === 0 ? (
+                            <p className="text-slate-400 text-sm text-center py-8">Sin ingresos registrados</p>
                         ) : (
-                            (stats.categoryData || []).map((cat, i) => (
-                                <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-50 transition-colors">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <span className="text-lg leading-none">{cat.emoji}</span>
-                                        <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                            (stats.categoryData || []).filter(c => c.tipo === "ingreso").map((cat, i) => (
+                                <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-green-50/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl leading-none">{cat.emoji}</span>
+                                        <span className="text-sm font-medium text-slate-700">{cat.nombre}</span>
                                     </div>
-                                    <span className="text-sm font-semibold text-slate-800 ml-2 whitespace-nowrap">
-                                        $ {cat.total.toLocaleString('es-CO')}
+                                    <span className="text-sm font-bold text-green-600">
+                                        + $ {cat.total.toLocaleString('es-CO')}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Gastos por Categoría */}
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full">
+                    <div className="px-6 pt-5 pb-3 border-b border-slate-50 flex items-center gap-2">
+                        <TrendingDown className="h-4 w-4 text-rose-500" />
+                        <h3 className="text-slate-800 font-semibold tracking-tight text-base">Gastos por Categoría</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[300px]">
+                        {(stats.categoryData || []).filter(c => c.tipo === "gasto").length === 0 ? (
+                            <p className="text-slate-400 text-sm text-center py-8">Sin gastos registrados</p>
+                        ) : (
+                            (stats.categoryData || []).filter(c => c.tipo === "gasto").map((cat, i) => (
+                                <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-rose-50/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl leading-none">{cat.emoji}</span>
+                                        <span className="text-sm font-medium text-slate-700">{cat.nombre}</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-rose-600">
+                                        - $ {cat.total.toLocaleString('es-CO')}
                                     </span>
                                 </div>
                             ))

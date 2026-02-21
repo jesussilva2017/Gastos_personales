@@ -139,24 +139,32 @@ export async function getDashboardStats(year?: number, month?: number) {
         .order("created_at", { ascending: true })
 
     const monthlyData: Record<string, { ingresos: number; gastos: number }> = {}
-    const categoryTotals: Record<string, { nombre: string; emoji: string; total: number }> = {}
+    const categoryTotals: Record<string, { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" }> = {}
 
     allTx?.forEach((tx: any) => {
         const date = new Date(tx.created_at)
         const monthName = date.toLocaleString('es-CO', { month: 'long' })
         const label = monthName.charAt(0).toUpperCase() + monthName.slice(1)
         if (!monthlyData[label]) monthlyData[label] = { ingresos: 0, gastos: 0 }
+
         if (tx.tipo === "ingreso") monthlyData[label].ingresos += Number(tx.valor)
         if (tx.tipo === "gasto") monthlyData[label].gastos += Number(tx.valor)
 
-        // Aggregate totals per category (only for expenses)
-        if (tx.tipo === "gasto") {
-            const cat = tx.categories
-            const catName = cat?.nombre || "Sin categoría"
-            const catEmoji = cat?.emoji || "🏷️"
-            if (!categoryTotals[catName]) categoryTotals[catName] = { nombre: catName, emoji: catEmoji, total: 0 }
-            categoryTotals[catName].total += Number(tx.valor)
+        // Aggregate totals per category (Income and Expense separately)
+        const cat = tx.categories
+        const catName = cat?.nombre || "Sin categoría"
+        const catEmoji = cat?.emoji || "🏷️"
+        const key = `${catName}-${tx.tipo}`
+
+        if (!categoryTotals[key]) {
+            categoryTotals[key] = {
+                nombre: catName,
+                emoji: catEmoji,
+                total: 0,
+                tipo: tx.tipo as "ingreso" | "gasto"
+            }
         }
+        categoryTotals[key].total += Number(tx.valor)
     })
 
     // Format for Recharts
