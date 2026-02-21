@@ -12,11 +12,12 @@ export default async function ProfileLayout({
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect("/auth/login")
 
-    const { data: profile } = await supabase.from("profiles").select("nombre, rol").eq("id", user.id).single()
+    const adminSupabase = (await import("@/lib/supabase")).getAdminClient()
+    const { data: profile } = await adminSupabase.from("profiles").select("nombre, apellido, rol").eq("id", user.id).single()
 
     return (
         <>
-            <Navbar nombre={profile?.nombre || "Usuario"} rol={profile?.rol || "user"} />
+            <Navbar nombre={profile?.nombre || "Usuario"} apellido={profile?.apellido || ""} rol={profile?.rol || "user"} />
             <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full block">
                 {children}
             </main>

@@ -5,26 +5,27 @@ import { userAdminSchema, userAdminUpdateSchema, type UserAdminInput, type UserA
 import { revalidatePath } from "next/cache"
 
 export async function getUsersStats() {
-    const supabase = getServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { total: 0, inactivos: 0 }
+    const adminClient = getAdminClient()
 
-    const { data: total } = await supabase.from("profiles").select("id", { count: "exact" })
-    const { data: inactivos } = await supabase.from("profiles").select("id", { count: "exact" }).eq("activo", false)
+    const { count: total, error: totalError } = await adminClient.from("profiles").select("*", { count: "exact", head: true })
+    const { count: inactivos, error: inactivosError } = await adminClient.from("profiles").select("*", { count: "exact", head: true }).eq("activo", false)
 
-    return { total: total?.length || 0, inactivos: inactivos?.length || 0 }
+    if (totalError || inactivosError) {
+        console.error("Error fetching stats:", totalError || inactivosError)
+        return { total: 0, inactivos: 0 }
+    }
+
+    return { total: total || 0, inactivos: inactivos || 0 }
 }
 
 export async function getUsers(page: number = 1, search: string = "") {
-    const supabase = getServerClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { data: [], count: 0 }
+    const adminClient = getAdminClient()
 
     const limit = 10
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    let query = supabase
+    let query = adminClient
         .from("profiles")
         .select("*", { count: "exact" })
         .order("created_at", { ascending: false })
@@ -36,11 +37,6 @@ export async function getUsers(page: number = 1, search: string = "") {
 
     const { data, count, error } = await query
 
-    // We need emails too, but profiles doesn't store emails in the requirements except user requests it?
-    // Requirements: "Tabla profiles: id UUID FK a auth.users, nombre, apellido, celular, rol TEXT DEFAULT user, activo BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT now()"
-    // Admin list: "nombre completo, correo, celular, rol, estado activo o inactivo, fecha de registro y acciones."
-    // Wait, email is not in profiles. We can fetch emails using admin auth client.
-    const adminClient = getAdminClient()
     const { data: { users: authUsers } } = await adminClient.auth.admin.listUsers()
 
     const mappedData = data?.map(profile => {
@@ -51,9 +47,9 @@ export async function getUsers(page: number = 1, search: string = "") {
     // Re-filter by email if search present and no mapping matched name?
     let finalData = mappedData || []
     if (search && !data?.length && authUsers) {
-        const matchingAuthUsers = authUsers.filter(u => u.email?.includes(search)).map(u => u.id)
+        const matchingAuthUsers = authUsers.filter(u => u.email?.toLowerCase().includes(search.toLowerCase())).map(u => u.id)
         if (matchingAuthUsers.length) {
-            const q = await supabase.from("profiles").select("*", { count: "exact" }).in("id", matchingAuthUsers).range(from, to)
+            const q = await adminClient.from("profiles").select("*", { count: "exact" }).in("id", matchingAuthUsers).range(from, to)
             finalData = q.data?.map(profile => {
                 const authUser = authUsers.find(u => u.id === profile.id)
                 return { ...profile, email: authUser?.email || "" }

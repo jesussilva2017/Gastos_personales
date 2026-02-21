@@ -11,7 +11,7 @@ export default function Home() {
           <div className="bg-green-100 p-2 rounded-full">
             <ShieldCheck className="h-6 w-6 text-green-600" />
           </div>
-          <span className="text-xl font-bold text-slate-800 tracking-tight">GastosApp</span>
+          <span className="text-xl font-bold text-slate-800 tracking-tight">Finanzas Personales</span>
         </div>
         <div className="flex items-center space-x-4">
           <Link href="/auth/login" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors hidden sm:block">

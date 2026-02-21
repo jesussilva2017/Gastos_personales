@@ -47,7 +47,15 @@ export async function middleware(request: NextRequest) {
     }
 
     if (user) {
-        const { data: profile } = await supabase
+        // Use plain createClient for service role profile lookup in middleware
+        // to bypass RLS issues that can affect server-side checks
+        const { createClient: createAdmin } = await import('@supabase/supabase-js')
+        const adminClient = createAdmin(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        )
+
+        const { data: profile } = await adminClient
             .from('profiles')
             .select('rol, activo')
             .eq('id', user.id)
@@ -55,7 +63,7 @@ export async function middleware(request: NextRequest) {
 
         const isAdmin = profile?.rol === 'admin'
 
-        // Evitar loop en la misma ruta
+        // Redirections
         if (isAuthRoute) {
             return NextResponse.redirect(new URL(isAdmin ? '/admin' : '/dashboard', request.url))
         }

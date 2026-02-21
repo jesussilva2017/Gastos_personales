@@ -104,7 +104,7 @@ export async function getDashboardStats(year?: number, month?: number) {
     const supabase = getServerClient()
     const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ingresos: 0, gastos: 0, balance: 0, chartData: [] }
+    if (!user) return { ingresos: 0, gastos: 0, balance: 0, chartData: [], categoryData: [] }
 
     const now = new Date()
     const targetYear = year || now.getFullYear()
@@ -132,20 +132,29 @@ export async function getDashboardStats(year?: number, month?: number) {
     // Get transactions for the selected period to build the chart
     const { data: allTx } = await adminSupabase
         .from("transactions")
-        .select("created_at, tipo, valor")
+        .select("created_at, tipo, valor, categories(nombre, emoji)")
         .eq("user_id", user.id)
         .gte("created_at", startOfMonth)
         .lte("created_at", endOfMonth)
         .order("created_at", { ascending: true })
 
     const monthlyData: Record<string, { ingresos: number; gastos: number }> = {}
+    const categoryTotals: Record<string, { nombre: string; emoji: string; total: number }> = {}
 
-    allTx?.forEach((tx) => {
+    allTx?.forEach((tx: any) => {
         const date = new Date(tx.created_at)
-        const monthYear = date.toLocaleString('default', { month: 'short', year: '2-digit' })
-        if (!monthlyData[monthYear]) monthlyData[monthYear] = { ingresos: 0, gastos: 0 }
-        if (tx.tipo === "ingreso") monthlyData[monthYear].ingresos += Number(tx.valor)
-        if (tx.tipo === "gasto") monthlyData[monthYear].gastos += Number(tx.valor)
+        const monthName = date.toLocaleString('es-CO', { month: 'long' })
+        const label = monthName.charAt(0).toUpperCase() + monthName.slice(1)
+        if (!monthlyData[label]) monthlyData[label] = { ingresos: 0, gastos: 0 }
+        if (tx.tipo === "ingreso") monthlyData[label].ingresos += Number(tx.valor)
+        if (tx.tipo === "gasto") monthlyData[label].gastos += Number(tx.valor)
+
+        // Aggregate totals per category (all types)
+        const cat = tx.categories
+        const catName = cat?.nombre || "Sin categoría"
+        const catEmoji = cat?.emoji || "🏷️"
+        if (!categoryTotals[catName]) categoryTotals[catName] = { nombre: catName, emoji: catEmoji, total: 0 }
+        categoryTotals[catName].total += Number(tx.valor)
     })
 
     // Format for Recharts
@@ -155,5 +164,49 @@ export async function getDashboardStats(year?: number, month?: number) {
         gastos: monthlyData[key].gastos,
     }))
 
-    return { ingresos, gastos, balance: ingresos - gastos, chartData }
+    const categoryData = Object.values(categoryTotals).sort((a, b) => b.total - a.total)
+
+    return { ingresos, gastos, balance: ingresos - gastos, chartData, categoryData }
 }
+
+export async function copyTransactions(ids: string[], targetYear: number, targetMonth: number) {
+    const supabase = getServerClient()
+    const adminSupabase = getAdminClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return { error: "No autenticado" }
+
+    // Fetch the selected transactions
+    const { data: txs, error: fetchError } = await adminSupabase
+        .from("transactions")
+        .select("nombre, valor, tipo, categoria_id, created_at")
+        .in("id", ids)
+        .eq("user_id", user.id)
+
+    if (fetchError || !txs) return { error: fetchError?.message || "Error al obtener transacciones" }
+
+    // Build new records with dates in the target month, preserving the day where possible
+    const newRecords = txs.map((tx: any) => {
+        const originalDate = new Date(tx.created_at)
+        const originalDay = originalDate.getDate()
+        // Clamp day to last day of target month
+        const lastDay = new Date(targetYear, targetMonth + 1, 0).getDate()
+        const day = Math.min(originalDay, lastDay)
+        const newDate = new Date(targetYear, targetMonth, day, 12, 0, 0).toISOString()
+
+        return {
+            nombre: tx.nombre,
+            valor: tx.valor,
+            tipo: tx.tipo,
+            categoria_id: tx.categoria_id,
+            user_id: user.id,
+            created_at: newDate,
+        }
+    })
+
+    const { error: insertError } = await adminSupabase.from("transactions").insert(newRecords)
+    if (insertError) return { error: insertError.message }
+
+    revalidatePath("/dashboard")
+    return { success: true, count: newRecords.length }
+}
+

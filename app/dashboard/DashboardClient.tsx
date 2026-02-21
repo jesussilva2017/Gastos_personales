@@ -3,15 +3,15 @@
 import { useState } from "react"
 import { SummaryCard } from "@/components/cards/SummaryCard"
 import { BarChartComponent } from "@/components/charts/BarChartComponent"
+import { PieChartComponent } from "@/components/charts/PieChartComponent"
 import { TransactionCard } from "@/components/cards/TransactionCard"
 import { CategoryModal } from "@/components/modals/CategoryModal"
 import { TransactionModal } from "@/components/modals/TransactionModal"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, TrendingDown, Wallet, FolderOpen, Plus, ChevronLeft, ChevronRight } from "lucide-react"
+import { TrendingUp, TrendingDown, Wallet, FolderOpen, Plus, ChevronLeft, ChevronRight, CheckSquare, X, Copy } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { deleteTransaction } from "@/actions/transactions"
+import { deleteTransaction, copyTransactions } from "@/actions/transactions"
 import { toast } from "sonner"
-
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface DashboardClientProps {
@@ -20,6 +20,7 @@ interface DashboardClientProps {
         gastos: number
         balance: number
         chartData: any[]
+        categoryData: { nombre: string; emoji: string; total: number }[]
     }
     initialTransactions: {
         data: any[]
@@ -42,6 +43,16 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
     const [editingTxId, setEditingTxId] = useState<string | null>(null)
     const [editingTxData, setEditingTxData] = useState<any>(null)
 
+    // Selección de transacciones
+    const [selectMode, setSelectMode] = useState(false)
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+
+    // Modal de copia
+    const [copyModalOpen, setCopyModalOpen] = useState(false)
+    const [copyMonth, setCopyMonth] = useState(currentMonth.toString())
+    const [copyYear, setCopyYear] = useState(currentYear.toString())
+    const [copying, setCopying] = useState(false)
+
     const handleFilterChange = (month?: number, year?: number) => {
         const m = month !== undefined ? month : currentMonth
         const y = year !== undefined ? year : currentYear
@@ -63,6 +74,44 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
             toast.error(res.error)
         } else {
             toast.success("Transacción eliminada")
+        }
+    }
+
+    const handleCheck = (id: string, checked: boolean) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev)
+            if (checked) next.add(id)
+            else next.delete(id)
+            return next
+        })
+    }
+
+    const handleSelectAll = () => {
+        if (selectedIds.size === initialTransactions.data.length) {
+            setSelectedIds(new Set())
+        } else {
+            setSelectedIds(new Set(initialTransactions.data.map((tx: any) => tx.id)))
+        }
+    }
+
+    const handleExitSelectMode = () => {
+        setSelectMode(false)
+        setSelectedIds(new Set())
+    }
+
+    const handleCopyConfirm = async () => {
+        if (selectedIds.size === 0) return
+        setCopying(true)
+        const res = await copyTransactions(Array.from(selectedIds), parseInt(copyYear), parseInt(copyMonth))
+        setCopying(false)
+
+        if (res?.error) {
+            toast.error(res.error)
+        } else {
+            toast.success(`${(res as any).count} transacción(es) copiada(s) a ${MONTHS[parseInt(copyMonth)]} ${copyYear}`)
+            setCopyModalOpen(false)
+            handleExitSelectMode()
+            router.refresh()
         }
     }
 
@@ -100,21 +149,24 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 </div>
             </div>
 
-            {/* Botones de acción en la parte superior */}
-            <div className="flex flex-col sm:flex-row gap-3">
+            {/* Botones de acción alineados a la derecha */}
+            <div className="flex flex-row gap-2 items-center justify-end">
                 <Button
-                    className="flex-1 bg-slate-800 hover:bg-slate-900 transition-colors py-6 text-md shadow-sm"
-                    onClick={() => setCatModalOpen(true)}
-                >
-                    <FolderOpen className="mr-2 h-5 w-5 text-blue-400" />
-                    Categorías
-                </Button>
-                <Button
-                    className="flex-1 bg-green-600 hover:bg-green-700 transition-colors py-6 text-md shadow-sm text-white"
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 transition-colors py-2 px-4 text-sm shadow-sm text-white"
                     onClick={() => { setEditingTxId(null); setEditingTxData(null); setTxModalOpen(true); }}
                 >
-                    <Plus className="mr-2 h-5 w-5 text-white" />
+                    <Plus className="mr-1.5 h-4 w-4 text-white" />
                     Agregar Transacción
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="bg-slate-800 hover:bg-slate-900 text-white border-0 transition-colors py-2 px-4 text-sm shadow-sm"
+                    onClick={() => setCatModalOpen(true)}
+                >
+                    <FolderOpen className="mr-1.5 h-4 w-4 text-blue-400" />
+                    Categorías
                 </Button>
             </div>
 
@@ -125,14 +177,82 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-3 space-y-4">
-                    <BarChartComponent data={stats.chartData} />
+                <BarChartComponent data={stats.chartData} />
+                <PieChartComponent data={stats.categoryData || []} />
+                {/* Card de totales por categoría */}
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col">
+                    <div className="px-6 pt-5 pb-3 border-b border-slate-50">
+                        <h3 className="text-slate-800 font-semibold tracking-tight text-base">Totales por Categoría</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[300px]">
+                        {(stats.categoryData || []).length === 0 ? (
+                            <p className="text-slate-400 text-sm text-center py-8">Sin datos para el período</p>
+                        ) : (
+                            (stats.categoryData || []).map((cat, i) => (
+                                <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className="text-lg leading-none">{cat.emoji}</span>
+                                        <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                    </div>
+                                    <span className="text-sm font-semibold text-slate-800 ml-2 whitespace-nowrap">
+                                        $ {cat.total.toLocaleString('es-CO')}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </div>
                 </div>
             </div>
 
+            {/* ── Sección Transacciones ── */}
             <div className="space-y-4">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-wrap justify-between items-center gap-2">
                     <h2 className="text-xl font-bold text-slate-800 tracking-tight">Transacciones Recientes</h2>
+
+                    <div className="flex items-center gap-2">
+                        {!selectMode ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-slate-200 text-slate-600 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-300 transition-colors"
+                                onClick={() => setSelectMode(true)}
+                            >
+                                <CheckSquare className="mr-1.5 h-4 w-4" />
+                                Seleccionar
+                            </Button>
+                        ) : (
+                            <>
+                                <span className="text-sm text-slate-500">
+                                    {selectedIds.size} seleccionada(s)
+                                </span>
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-slate-200 text-slate-600 hover:bg-slate-50"
+                                    onClick={handleSelectAll}
+                                >
+                                    {selectedIds.size === initialTransactions.data.length ? "Deseleccionar todo" : "Seleccionar todo"}
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    disabled={selectedIds.size === 0}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-40"
+                                    onClick={() => setCopyModalOpen(true)}
+                                >
+                                    <Copy className="mr-1.5 h-4 w-4" />
+                                    Copiar al mes...
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-slate-500 hover:text-red-600 hover:bg-red-50"
+                                    onClick={handleExitSelectMode}
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 gap-3">
@@ -147,6 +267,9 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             fecha={tx.created_at}
                             onEdit={() => handleEditTx(tx.id, tx)}
                             onDelete={handleDeleteTx}
+                            selectable={selectMode}
+                            checked={selectedIds.has(tx.id)}
+                            onCheck={handleCheck}
                         />
                     ))}
 
@@ -182,11 +305,103 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 )}
             </div>
 
+            {/* ── Modal Copiar al Mes ── */}
+            {copyModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={() => !copying && setCopyModalOpen(false)}
+                    />
+                    {/* Panel */}
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 flex flex-col gap-5">
+                        <div className="flex items-start justify-between">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800">Copiar transacciones</h3>
+                                <p className="text-sm text-slate-500 mt-0.5">
+                                    {selectedIds.size} transacción(es) seleccionada(s)
+                                </p>
+                            </div>
+                            <button
+                                onClick={() => !copying && setCopyModalOpen(false)}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <p className="text-sm text-slate-600">
+                            Elige el mes y año de destino. Se crearán copias de las transacciones seleccionadas en ese período.
+                        </p>
+
+                        <div className="flex gap-3">
+                            <div className="flex-1">
+                                <label className="block text-xs font-medium text-slate-500 mb-1.5">Mes destino</label>
+                                <Select value={copyMonth} onValueChange={setCopyMonth}>
+                                    <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+                                        <SelectValue placeholder="Mes" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {MONTHS.map((m, idx) => (
+                                            <SelectItem key={idx} value={idx.toString()}>
+                                                {m}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="w-28">
+                                <label className="block text-xs font-medium text-slate-500 mb-1.5">Año</label>
+                                <Select value={copyYear} onValueChange={setCopyYear}>
+                                    <SelectTrigger className="w-full bg-slate-50 border-slate-200">
+                                        <SelectValue placeholder="Año" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() + 1 - i).map(y => (
+                                            <SelectItem key={y} value={y.toString()}>
+                                                {y}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 pt-1">
+                            <Button
+                                variant="outline"
+                                className="flex-1 border-slate-200"
+                                onClick={() => setCopyModalOpen(false)}
+                                disabled={copying}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white"
+                                onClick={handleCopyConfirm}
+                                disabled={copying}
+                            >
+                                {copying ? (
+                                    <span className="flex items-center gap-2">
+                                        <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Copiando...
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        <Copy className="h-4 w-4" />
+                                        Copiar
+                                    </span>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {catModalOpen && (
                 <CategoryModal defaultOpen={catModalOpen} onOpenChange={setCatModalOpen} />
             )}
 
-            {/* Reset the transaction modal form internally by unmounting or passing keys, or just use effect inside it. We use the effect inside. */}
             {txModalOpen && (
                 <TransactionModal
                     defaultOpen={txModalOpen}
