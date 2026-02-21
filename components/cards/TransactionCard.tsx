@@ -8,7 +8,7 @@ interface TransactionCardProps {
     id: string
     nombre: string
     valor: number
-    tipo: "ingreso" | "gasto"
+    tipo: "ingreso" | "gasto" | "ahorro"
     categoria: {
         nombre: string
         emoji: string
@@ -34,13 +34,13 @@ export function TransactionCard({
     checked = false,
     onCheck,
 }: TransactionCardProps) {
-    const isIngreso = tipo === "ingreso"
+    const isPositive = tipo === "ingreso" || tipo === "ahorro"
 
     return (
         <Card
             className={`transition-all duration-200 border bg-white ${checked
-                    ? "border-indigo-400 shadow-md ring-1 ring-indigo-300"
-                    : "border-slate-100 hover:shadow-md"
+                ? "border-indigo-400 shadow-md ring-1 ring-indigo-300"
+                : "border-slate-100 hover:shadow-md"
                 }`}
         >
             <CardContent className="p-4 flex items-center justify-between gap-3">
@@ -54,8 +54,8 @@ export function TransactionCard({
                     >
                         <span
                             className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${checked
-                                    ? "bg-indigo-600 border-indigo-600"
-                                    : "border-slate-300 hover:border-indigo-400 bg-white"
+                                ? "bg-indigo-600 border-indigo-600"
+                                : "border-slate-300 hover:border-indigo-400 bg-white"
                                 }`}
                         >
                             {checked && (
@@ -82,8 +82,9 @@ export function TransactionCard({
                 </div>
 
                 <div className="flex flex-col items-end justify-center space-y-1 flex-shrink-0">
-                    <span className={`font-bold tabular-nums ${isIngreso ? "text-green-600" : "text-red-500"}`}>
-                        {isIngreso ? "+" : "-"}{formatCurrency(valor)}
+                    <span className={`font-bold tabular-nums ${tipo === 'ingreso' ? 'text-green-600' : tipo === 'ahorro' ? 'text-indigo-600' : 'text-rose-500'
+                        }`}>
+                        {isPositive ? "+" : "-"}{formatCurrency(valor)}
                     </span>
                     <div className="flex items-center space-x-2">
                         <button

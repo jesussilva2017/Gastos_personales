@@ -6,7 +6,7 @@ interface SummaryCardProps {
     title: string
     amount: number
     icon: LucideIcon
-    type: "income" | "expense" | "balance"
+    type: "income" | "expense" | "balance" | "saving"
 }
 
 export function SummaryCard({ title, amount, icon: Icon, type }: SummaryCardProps) {
@@ -17,11 +17,14 @@ export function SummaryCard({ title, amount, icon: Icon, type }: SummaryCardProp
         colorClass = "text-green-600"
         iconColor = "text-green-500"
     } else if (type === "expense") {
-        colorClass = "text-red-500"
-        iconColor = "text-red-400"
+        colorClass = "text-rose-500"
+        iconColor = "text-rose-400"
+    } else if (type === "saving") {
+        colorClass = "text-indigo-600"
+        iconColor = "text-indigo-500"
     } else {
-        colorClass = amount >= 0 ? "text-green-600" : "text-red-500"
-        iconColor = "text-blue-500"
+        colorClass = amount >= 0 ? "text-slate-900" : "text-rose-500"
+        iconColor = "text-slate-400"
     }
 
     return (

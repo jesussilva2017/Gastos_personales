@@ -123,10 +123,12 @@ export async function getDashboardStats(year?: number, month?: number) {
 
     let ingresos = 0
     let gastos = 0
+    let ahorros = 0
 
     currentMonthTx?.forEach((tx) => {
         if (tx.tipo === "ingreso") ingresos += Number(tx.valor)
         if (tx.tipo === "gasto") gastos += Number(tx.valor)
+        if (tx.tipo === "ahorro") ahorros += Number(tx.valor)
     })
 
     // Get transactions for the selected period to build the chart
@@ -138,17 +140,18 @@ export async function getDashboardStats(year?: number, month?: number) {
         .lte("created_at", endOfMonth)
         .order("created_at", { ascending: true })
 
-    const monthlyData: Record<string, { ingresos: number; gastos: number }> = {}
-    const categoryTotals: Record<string, { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" }> = {}
+    const monthlyData: Record<string, { ingresos: number; gastos: number; ahorros: number }> = {}
+    const categoryTotals: Record<string, { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" | "ahorro" }> = {}
 
     allTx?.forEach((tx: any) => {
         const date = new Date(tx.created_at)
         const monthName = date.toLocaleString('es-CO', { month: 'long' })
         const label = monthName.charAt(0).toUpperCase() + monthName.slice(1)
-        if (!monthlyData[label]) monthlyData[label] = { ingresos: 0, gastos: 0 }
+        if (!monthlyData[label]) monthlyData[label] = { ingresos: 0, gastos: 0, ahorros: 0 }
 
         if (tx.tipo === "ingreso") monthlyData[label].ingresos += Number(tx.valor)
         if (tx.tipo === "gasto") monthlyData[label].gastos += Number(tx.valor)
+        if (tx.tipo === "ahorro") monthlyData[label].ahorros += Number(tx.valor)
 
         // Aggregate totals per category (Income and Expense separately)
         const cat = tx.categories
@@ -161,7 +164,7 @@ export async function getDashboardStats(year?: number, month?: number) {
                 nombre: catName,
                 emoji: catEmoji,
                 total: 0,
-                tipo: tx.tipo as "ingreso" | "gasto"
+                tipo: tx.tipo as "ingreso" | "gasto" | "ahorro"
             }
         }
         categoryTotals[key].total += Number(tx.valor)
@@ -172,11 +175,12 @@ export async function getDashboardStats(year?: number, month?: number) {
         name: key,
         ingresos: monthlyData[key].ingresos,
         gastos: monthlyData[key].gastos,
+        ahorros: monthlyData[key].ahorros,
     }))
 
     const categoryData = Object.values(categoryTotals).sort((a, b) => b.total - a.total)
 
-    return { ingresos, gastos, balance: ingresos - gastos, chartData, categoryData }
+    return { ingresos, gastos, ahorros, balance: ingresos - gastos, chartData, categoryData }
 }
 
 export async function copyTransactions(ids: string[], targetYear: number, targetMonth: number) {

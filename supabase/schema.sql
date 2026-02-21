@@ -25,7 +25,7 @@ create table public.transactions (
   id uuid default gen_random_uuid() primary key,
   nombre text not null,
   valor numeric not null check (valor > 0),
-  tipo text check (tipo in ('ingreso', 'gasto')) not null,
+  tipo text check (tipo in ('ingreso', 'gasto', 'ahorro')) not null,
   categoria_id uuid references public.categories on delete set null,
   user_id uuid references auth.users on delete cascade not null,
   created_at timestamp with time zone default timezone('utc'::text, now()) not null

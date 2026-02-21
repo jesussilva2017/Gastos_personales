@@ -8,7 +8,7 @@ import { TransactionCard } from "@/components/cards/TransactionCard"
 import { CategoryModal } from "@/components/modals/CategoryModal"
 import { TransactionModal } from "@/components/modals/TransactionModal"
 import { Button } from "@/components/ui/button"
-import { TrendingUp, TrendingDown, Wallet, FolderOpen, Plus, ChevronLeft, ChevronRight, CheckSquare, X, Copy } from "lucide-react"
+import { TrendingUp, TrendingDown, Wallet, FolderOpen, Plus, ChevronLeft, ChevronRight, CheckSquare, X, Copy, PiggyBank } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { deleteTransaction, copyTransactions } from "@/actions/transactions"
 import { toast } from "sonner"
@@ -18,9 +18,10 @@ interface DashboardClientProps {
     stats: {
         ingresos: number
         gastos: number
+        ahorros: number
         balance: number
         chartData: any[]
-        categoryData: { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" }[]
+        categoryData: { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" | "ahorro" }[]
     }
     initialTransactions: {
         data: any[]
@@ -170,9 +171,10 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 </Button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <SummaryCard title="Ingresos (Mes)" amount={stats.ingresos} icon={TrendingUp} type="income" />
                 <SummaryCard title="Gastos (Mes)" amount={stats.gastos} icon={TrendingDown} type="expense" />
+                <SummaryCard title="Ahorros (Mes)" amount={stats.ahorros} icon={PiggyBank} type="saving" />
                 <SummaryCard title="Balance Total" amount={stats.balance} icon={Wallet} type="balance" />
             </div>
 
@@ -182,17 +184,20 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 <PieChartComponent data={(stats.categoryData || []).filter(c => c.tipo === "gasto")} />
             </div>
 
-            {/* ── Fila de Listas por Categoría ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* ── Fila de Listas por Categoría (3 Columnas) ── */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* Ingresos por Categoría */}
-                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full">
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full min-h-[300px]">
                     <div className="px-6 pt-5 pb-3 border-b border-slate-50 flex items-center gap-2">
                         <TrendingUp className="h-4 w-4 text-green-600" />
                         <h3 className="text-slate-800 font-semibold tracking-tight text-base">Ingresos por Categoría</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[300px]">
                         {(stats.categoryData || []).filter(c => c.tipo === "ingreso").length === 0 ? (
-                            <p className="text-slate-400 text-sm text-center py-8">Sin ingresos registrados</p>
+                            <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                                <TrendingUp className="h-8 w-8 text-slate-300 mb-2" />
+                                <p className="text-slate-400 text-xs text-center italic">Sin ingresos registrados</p>
+                            </div>
                         ) : (
                             (stats.categoryData || []).filter(c => c.tipo === "ingreso").map((cat, i) => (
                                 <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-green-50/50 transition-colors">
@@ -210,14 +215,17 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 </div>
 
                 {/* Gastos por Categoría */}
-                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full">
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full min-h-[300px]">
                     <div className="px-6 pt-5 pb-3 border-b border-slate-50 flex items-center gap-2">
                         <TrendingDown className="h-4 w-4 text-rose-500" />
                         <h3 className="text-slate-800 font-semibold tracking-tight text-base">Gastos por Categoría</h3>
                     </div>
                     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[300px]">
                         {(stats.categoryData || []).filter(c => c.tipo === "gasto").length === 0 ? (
-                            <p className="text-slate-400 text-sm text-center py-8">Sin gastos registrados</p>
+                            <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                                <TrendingDown className="h-8 w-8 text-slate-300 mb-2" />
+                                <p className="text-slate-400 text-xs text-center italic">Sin gastos registrados</p>
+                            </div>
                         ) : (
                             (stats.categoryData || []).filter(c => c.tipo === "gasto").map((cat, i) => (
                                 <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-rose-50/50 transition-colors">
@@ -227,6 +235,34 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                     </div>
                                     <span className="text-sm font-bold text-rose-600">
                                         - $ {cat.total.toLocaleString('es-CO')}
+                                    </span>
+                                </div>
+                            ))
+                        )}
+                    </div>
+                </div>
+
+                {/* Ahorros por Categoría */}
+                <div className="bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col h-full min-h-[300px]">
+                    <div className="px-6 pt-5 pb-3 border-b border-slate-50 flex items-center gap-2">
+                        <PiggyBank className="h-4 w-4 text-indigo-500" />
+                        <h3 className="text-slate-800 font-semibold tracking-tight text-base">Ahorros por Categoría</h3>
+                    </div>
+                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 max-h-[300px]">
+                        {(stats.categoryData || []).filter(c => c.tipo === "ahorro").length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-10 opacity-40">
+                                <PiggyBank className="h-8 w-8 text-slate-300 mb-2" />
+                                <p className="text-slate-400 text-xs text-center italic">Sin ahorros registrados</p>
+                            </div>
+                        ) : (
+                            (stats.categoryData || []).filter(c => c.tipo === "ahorro").map((cat, i) => (
+                                <div key={i} className="flex items-center justify-between py-2.5 px-3 rounded-lg hover:bg-indigo-50/50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-xl leading-none">{cat.emoji}</span>
+                                        <span className="text-sm font-medium text-slate-700">{cat.nombre}</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-indigo-600">
+                                        + $ {cat.total.toLocaleString('es-CO')}
                                     </span>
                                 </div>
                             ))

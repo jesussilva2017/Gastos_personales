@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { TrendingUp, TrendingDown, PiggyBank } from "lucide-react"
 
 interface TransactionModalProps {
     defaultOpen?: boolean
@@ -27,7 +28,12 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
 
     const form = useForm<TransactionInput>({
         resolver: zodResolver(transactionSchema),
-        defaultValues: { nombre: "", valor: "" as any, tipo: "gasto", categoria_id: "" },
+        defaultValues: {
+            nombre: "",
+            valor: undefined as any,
+            tipo: "gasto",
+            categoria_id: ""
+        },
     })
 
     useEffect(() => {
@@ -40,7 +46,7 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
                 categoria_id: initialData.categoria_id,
             })
         } else {
-            form.reset({ nombre: "", valor: "" as any, tipo: "gasto", categoria_id: "" })
+            form.reset({ nombre: "", valor: undefined as any, tipo: "gasto", categoria_id: "" })
         }
     }, [editingId, initialData])
 
@@ -82,22 +88,42 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
                 </DialogHeader>
 
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1.5 border border-slate-200/50">
                         <Button
                             type="button"
-                            variant={form.watch("tipo") === "ingreso" ? "default" : "outline"}
-                            className={form.watch("tipo") === "ingreso" ? "bg-green-600 hover:bg-green-700" : ""}
+                            variant="ghost"
+                            className={`flex-1 rounded-xl transition-all duration-300 h-11 ${form.watch("tipo") === "ingreso"
+                                ? "bg-white text-green-600 shadow-md ring-1 ring-slate-200"
+                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                                }`}
                             onClick={() => form.setValue("tipo", "ingreso")}
                         >
-                            Ingreso
+                            <TrendingUp className={`mr-2 h-4 w-4 ${form.watch("tipo") === "ingreso" ? "animate-bounce" : ""}`} />
+                            <span className="font-semibold text-sm">Ingreso</span>
                         </Button>
                         <Button
                             type="button"
-                            variant={form.watch("tipo") === "gasto" ? "default" : "outline"}
-                            className={form.watch("tipo") === "gasto" ? "bg-red-500 hover:bg-red-600" : ""}
+                            variant="ghost"
+                            className={`flex-1 rounded-xl transition-all duration-300 h-11 ${form.watch("tipo") === "gasto"
+                                ? "bg-white text-rose-500 shadow-md ring-1 ring-slate-200"
+                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                                }`}
                             onClick={() => form.setValue("tipo", "gasto")}
                         >
-                            Gasto
+                            <TrendingDown className={`mr-2 h-4 w-4 ${form.watch("tipo") === "gasto" ? "animate-bounce" : ""}`} />
+                            <span className="font-semibold text-sm">Gasto</span>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            className={`flex-1 rounded-xl transition-all duration-300 h-11 ${form.watch("tipo") === "ahorro"
+                                ? "bg-white text-indigo-600 shadow-md ring-1 ring-slate-200"
+                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
+                                }`}
+                            onClick={() => form.setValue("tipo", "ahorro")}
+                        >
+                            <PiggyBank className={`mr-2 h-4 w-4 ${form.watch("tipo") === "ahorro" ? "animate-bounce" : ""}`} />
+                            <span className="font-semibold text-sm">Ahorro</span>
                         </Button>
                     </div>
                     {form.formState.errors.tipo && <p className="text-red-500 text-sm">{form.formState.errors.tipo.message}</p>}
