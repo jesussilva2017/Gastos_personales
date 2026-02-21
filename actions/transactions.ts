@@ -149,12 +149,14 @@ export async function getDashboardStats(year?: number, month?: number) {
         if (tx.tipo === "ingreso") monthlyData[label].ingresos += Number(tx.valor)
         if (tx.tipo === "gasto") monthlyData[label].gastos += Number(tx.valor)
 
-        // Aggregate totals per category (all types)
-        const cat = tx.categories
-        const catName = cat?.nombre || "Sin categoría"
-        const catEmoji = cat?.emoji || "🏷️"
-        if (!categoryTotals[catName]) categoryTotals[catName] = { nombre: catName, emoji: catEmoji, total: 0 }
-        categoryTotals[catName].total += Number(tx.valor)
+        // Aggregate totals per category (only for expenses)
+        if (tx.tipo === "gasto") {
+            const cat = tx.categories
+            const catName = cat?.nombre || "Sin categoría"
+            const catEmoji = cat?.emoji || "🏷️"
+            if (!categoryTotals[catName]) categoryTotals[catName] = { nombre: catName, emoji: catEmoji, total: 0 }
+            categoryTotals[catName].total += Number(tx.valor)
+        }
     })
 
     // Format for Recharts
