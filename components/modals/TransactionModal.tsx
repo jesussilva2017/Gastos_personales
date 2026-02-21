@@ -23,6 +23,7 @@ interface TransactionModalProps {
 export function TransactionModal({ defaultOpen = false, onOpenChange, editingId, initialData }: TransactionModalProps) {
     const [categories, setCategories] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
+    const [categoriesLoading, setCategoriesLoading] = useState(true)
 
     const form = useForm<TransactionInput>({
         resolver: zodResolver(transactionSchema),
@@ -30,24 +31,29 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
     })
 
     useEffect(() => {
-        if (defaultOpen) {
-            loadCategories()
-            if (editingId && initialData) {
-                form.reset({
-                    nombre: initialData.nombre,
-                    valor: initialData.valor,
-                    tipo: initialData.tipo,
-                    categoria_id: initialData.categoria_id,
-                })
-            } else {
-                form.reset({ nombre: "", valor: "" as any, tipo: "gasto", categoria_id: "" })
-            }
+        loadCategories()
+        if (editingId && initialData) {
+            form.reset({
+                nombre: initialData.nombre,
+                valor: initialData.valor,
+                tipo: initialData.tipo,
+                categoria_id: initialData.categoria_id,
+            })
+        } else {
+            form.reset({ nombre: "", valor: "" as any, tipo: "gasto", categoria_id: "" })
         }
-    }, [defaultOpen, editingId, initialData])
+    }, [editingId, initialData])
 
     const loadCategories = async () => {
-        const data = await getCategories()
-        setCategories(data || [])
+        setCategoriesLoading(true)
+        try {
+            const data = await getCategories()
+            setCategories(data || [])
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setCategoriesLoading(false)
+        }
     }
 
     const onSubmit = async (data: TransactionInput) => {
@@ -113,9 +119,16 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
                         <Select
                             value={form.watch("categoria_id")}
                             onValueChange={(val) => form.setValue("categoria_id", val)}
+                            disabled={categoriesLoading || categories.length === 0}
                         >
                             <SelectTrigger>
-                                <SelectValue placeholder="Seleccione una categoría" />
+                                <SelectValue placeholder={
+                                    categoriesLoading
+                                        ? "Cargando categorías..."
+                                        : categories.length === 0
+                                            ? "No hay categorías registradas"
+                                            : "Seleccione una categoría"
+                                } />
                             </SelectTrigger>
                             <SelectContent>
                                 {categories.map((cat) => (
@@ -125,6 +138,11 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
                                 ))}
                             </SelectContent>
                         </Select>
+                        {categories.length === 0 && !categoriesLoading && (
+                            <p className="text-amber-600 text-xs mt-1">
+                                Debes crear al menos una categoría primero.
+                            </p>
+                        )}
                         {form.formState.errors.categoria_id && <p className="text-red-500 text-sm">{form.formState.errors.categoria_id.message}</p>}
                     </div>
 

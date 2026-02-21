@@ -1,18 +1,19 @@
 "use server"
 
-import { getServerClient } from "@/lib/supabase"
+import { getServerClient, getAdminClient } from "@/lib/supabase"
 import { transactionSchema, type TransactionInput } from "@/lib/validations"
 import { revalidatePath } from "next/cache"
 
-export async function getTransactions(page: number = 1, limit: number = 10) {
+export async function getTransactions(page: number = 1, limit: number = 10, year?: number, month?: number) {
     const supabase = getServerClient()
+    const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { data: [], count: 0 }
 
     const from = (page - 1) * limit
     const to = from + limit - 1
 
-    const { data, count, error } = await supabase
+    let query = adminSupabase
         .from("transactions")
         .select(`
       *,
@@ -22,6 +23,14 @@ export async function getTransactions(page: number = 1, limit: number = 10) {
       )
     `, { count: "exact" })
         .eq("user_id", user.id)
+
+    if (year !== undefined && month !== undefined) {
+        const startOfMonth = new Date(year, month, 1).toISOString()
+        const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
+        query = query.gte("created_at", startOfMonth).lte("created_at", endOfMonth)
+    }
+
+    const { data, count, error } = await query
         .order("created_at", { ascending: false })
         .range(from, to)
 
@@ -34,10 +43,11 @@ export async function addTransaction(data: TransactionInput) {
     if (!result.success) return { error: result.error.issues[0].message }
 
     const supabase = getServerClient()
+    const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: "No autenticado" }
 
-    const { error } = await supabase.from("transactions").insert({
+    const { error } = await adminSupabase.from("transactions").insert({
         nombre: data.nombre,
         valor: data.valor,
         tipo: data.tipo,
@@ -55,10 +65,11 @@ export async function editTransaction(id: string, data: TransactionInput) {
     if (!result.success) return { error: result.error.issues[0].message }
 
     const supabase = getServerClient()
+    const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: "No autenticado" }
 
-    const { error } = await supabase
+    const { error } = await adminSupabase
         .from("transactions")
         .update({
             nombre: data.nombre,
@@ -75,10 +86,11 @@ export async function editTransaction(id: string, data: TransactionInput) {
 
 export async function deleteTransaction(id: string) {
     const supabase = getServerClient()
+    const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { error: "No autenticado" }
 
-    const { error } = await supabase
+    const { error } = await adminSupabase
         .from("transactions")
         .delete()
         .match({ id, user_id: user.id })
@@ -88,17 +100,21 @@ export async function deleteTransaction(id: string) {
     return { success: true }
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(year?: number, month?: number) {
     const supabase = getServerClient()
+    const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return { ingresos: 0, gastos: 0, balance: 0, chartData: [] }
 
     const now = new Date()
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString()
+    const targetYear = year || now.getFullYear()
+    const targetMonth = month !== undefined ? month : now.getMonth()
 
-    // Get current month transactions
-    const { data: currentMonthTx } = await supabase
+    const startOfMonth = new Date(targetYear, targetMonth, 1).toISOString()
+    const endOfMonth = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59).toISOString()
+
+    // Get selected month transactions
+    const { data: currentMonthTx } = await adminSupabase
         .from("transactions")
         .select("tipo, valor")
         .eq("user_id", user.id)
@@ -113,11 +129,13 @@ export async function getDashboardStats() {
         if (tx.tipo === "gasto") gastos += Number(tx.valor)
     })
 
-    // Get all transactions for chart (grouped by month)
-    const { data: allTx } = await supabase
+    // Get transactions for the selected period to build the chart
+    const { data: allTx } = await adminSupabase
         .from("transactions")
         .select("created_at, tipo, valor")
         .eq("user_id", user.id)
+        .gte("created_at", startOfMonth)
+        .lte("created_at", endOfMonth)
         .order("created_at", { ascending: true })
 
     const monthlyData: Record<string, { ingresos: number; gastos: number }> = {}

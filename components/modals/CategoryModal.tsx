@@ -16,6 +16,7 @@ import { toast } from "sonner"
 export function CategoryModal({ defaultOpen = false, onOpenChange }: { defaultOpen?: boolean, onOpenChange: (open: boolean) => void }) {
     const [categories, setCategories] = useState<any[]>([])
     const [loading, setLoading] = useState(false)
+    const [categoriesLoading, setCategoriesLoading] = useState(true)
     const [editingId, setEditingId] = useState<string | null>(null)
     const [showPicker, setShowPicker] = useState(false)
 
@@ -25,14 +26,19 @@ export function CategoryModal({ defaultOpen = false, onOpenChange }: { defaultOp
     })
 
     useEffect(() => {
-        if (defaultOpen) {
-            loadCategories()
-        }
-    }, [defaultOpen])
+        loadCategories()
+    }, [])
 
     const loadCategories = async () => {
-        const data = await getCategories()
-        setCategories(data || [])
+        setCategoriesLoading(true)
+        try {
+            const data = await getCategories()
+            setCategories(data || [])
+        } catch (error) {
+            console.error(error)
+        } finally {
+            setCategoriesLoading(false)
+        }
     }
 
     const onSubmit = async (data: CategoryInput) => {
@@ -129,8 +135,17 @@ export function CategoryModal({ defaultOpen = false, onOpenChange }: { defaultOp
 
                 <div className="space-y-3 mt-4 pt-4 border-t border-slate-100">
                     <h3 className="font-medium text-sm text-slate-500">Categorías existentes</h3>
-                    {categories.length === 0 ? (
-                        <p className="text-sm text-slate-400 text-center py-4">No hay categorías registradas</p>
+
+                    {categoriesLoading ? (
+                        <div className="space-y-2 py-4">
+                            <div className="h-12 bg-slate-50 animate-pulse rounded-lg"></div>
+                            <div className="h-12 bg-slate-50 animate-pulse rounded-lg"></div>
+                        </div>
+                    ) : categories.length === 0 ? (
+                        <div className="text-center py-6">
+                            <p className="text-sm text-slate-400">No hay categorías para tu usuario.</p>
+                            <p className="text-[10px] text-slate-300 mt-2">Prueba creando una nueva con el botón de arriba.</p>
+                        </div>
                     ) : (
                         categories.map(cat => (
                             <div key={cat.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-100 hover:border-slate-200 transition-colors">

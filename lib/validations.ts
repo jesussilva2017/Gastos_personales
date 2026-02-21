@@ -24,6 +24,7 @@ export const resetPasswordSchema = z.object({
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>
 
 export const updatePasswordSchema = z.object({
+    currentPassword: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
     password: z.string().min(6, "La contraseña debe tener al menos 6 caracteres"),
     confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -52,6 +53,7 @@ export type TransactionInput = z.infer<typeof transactionSchema>
 export const profileSchema = z.object({
     nombre: z.string().min(2, "Mínimo 2 caracteres"),
     apellido: z.string().min(2, "Mínimo 2 caracteres"),
+    email: z.string().email("Correo inválido"),
     celular: z.string().min(8, "Mínimo 8 caracteres"),
 })
 

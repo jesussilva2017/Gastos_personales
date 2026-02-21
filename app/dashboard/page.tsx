@@ -7,11 +7,22 @@ export const dynamic = 'force-dynamic'
 export default async function DashboardPage({
     searchParams,
 }: {
-    searchParams: { page?: string }
+    searchParams: { page?: string, month?: string, year?: string }
 }) {
     const page = searchParams.page ? parseInt(searchParams.page) : 1
-    const stats = await getDashboardStats()
-    const transactionsData = await getTransactions(page, 10)
+    const year = searchParams.year ? parseInt(searchParams.year) : new Date().getFullYear()
+    const month = searchParams.month ? parseInt(searchParams.month) : new Date().getMonth()
 
-    return <DashboardClient stats={stats} initialTransactions={transactionsData} page={page} />
+    const stats = await getDashboardStats(year, month)
+    const transactionsData = await getTransactions(page, 10, year, month)
+
+    return (
+        <DashboardClient
+            stats={stats}
+            initialTransactions={transactionsData}
+            page={page}
+            currentMonth={month}
+            currentYear={year}
+        />
+    )
 }
