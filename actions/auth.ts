@@ -23,17 +23,22 @@ export async function registerAction(data: RegisterInput) {
     const result = registerSchema.safeParse(data)
     if (!result.success) return { error: result.error.issues[0].message }
 
-    const supabase = getServerClient()
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    const adminClient = getAdminClient()
+
+    // Crear usuario usando el cliente admin para marcar el email como confirmado automáticamente
+    // Esto evita que se envíe el correo de confirmación de Supabase
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
         email: data.email,
         password: data.password,
+        email_confirm: true,
     })
 
     if (authError) return { error: authError.message }
 
     if (authData.user) {
-        const adminClient = await import("@/lib/supabase").then(m => m.getAdminClient())
-        const { error: profileError } = await adminClient.from('profiles').insert({
+        console.log("Creating profile for user:", authData.user.id)
+
+        const { error: profileError } = await adminClient.from('profiles').upsert({
             id: authData.user.id,
             nombre: data.nombre,
             apellido: data.apellido,
@@ -42,9 +47,25 @@ export async function registerAction(data: RegisterInput) {
             activo: true
         })
 
-        if (profileError) return { error: "Error al crear perfil" }
+        if (profileError) {
+            console.error("Error creating profile:", profileError)
+            return { error: "Error al crear el perfil del usuario" }
+        }
+
+        // Iniciar sesión automáticamente después de crear la cuenta y el perfil
+        const supabase = getServerClient()
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+            email: data.email,
+            password: data.password,
+        })
+
+        if (signInError) {
+            console.error("Error signing in after registration:", signInError)
+            return { error: "Cuenta creada, por favor inicia sesión manualmente" }
+        }
     }
 
+    revalidatePath("/")
     redirect("/dashboard")
 }
 

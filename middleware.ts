@@ -65,7 +65,7 @@ export async function middleware(request: NextRequest) {
 
         // Redirections
         if (isAuthRoute) {
-            return NextResponse.redirect(new URL(isAdmin ? '/admin' : '/dashboard', request.url))
+            return NextResponse.redirect(new URL('/dashboard', request.url))
         }
 
         if (isAdminRoute && !isAdmin) {
@@ -73,7 +73,7 @@ export async function middleware(request: NextRequest) {
         }
 
         if (request.nextUrl.pathname === '/') {
-            return NextResponse.redirect(new URL(isAdmin ? '/admin' : '/dashboard', request.url))
+            return NextResponse.redirect(new URL('/dashboard', request.url))
         }
     }
 
