@@ -8,7 +8,7 @@ export default function RegisterPage() {
                 <div className="bg-green-100 p-3 rounded-full mb-4">
                     <ShieldCheck className="w-8 h-8 text-green-600" />
                 </div>
-                <h2 className="text-3xl font-extrabold text-slate-900">GastosApp</h2>
+                <h2 className="text-3xl font-extrabold text-slate-900">Finanzas Personales</h2>
             </div>
             <RegisterForm />
         </div>
