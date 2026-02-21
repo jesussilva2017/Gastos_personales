@@ -13,6 +13,9 @@ import { useRouter } from "next/navigation"
 import { deleteTransaction, copyTransactions } from "@/actions/transactions"
 import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Search } from "lucide-react"
+import { useEffect } from "react"
 
 interface DashboardClientProps {
     stats: {
@@ -30,6 +33,7 @@ interface DashboardClientProps {
     page: number
     currentMonth: number
     currentYear: number
+    search: string
 }
 
 const MONTHS = [
@@ -37,7 +41,7 @@ const MONTHS = [
     "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
 ]
 
-export function DashboardClient({ stats, initialTransactions, page, currentMonth, currentYear }: DashboardClientProps) {
+export function DashboardClient({ stats, initialTransactions, page, currentMonth, currentYear, search }: DashboardClientProps) {
     const router = useRouter()
     const [catModalOpen, setCatModalOpen] = useState(false)
     const [txModalOpen, setTxModalOpen] = useState(false)
@@ -54,10 +58,22 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
     const [copyYear, setCopyYear] = useState(currentYear.toString())
     const [copying, setCopying] = useState(false)
 
+    const [searchTerm, setSearchTerm] = useState(search)
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (searchTerm !== search) {
+                router.push(`/dashboard?page=1&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}`)
+            }
+        }, 500)
+        return () => clearTimeout(timer)
+    }, [searchTerm, currentMonth, currentYear, search, router])
+
     const handleFilterChange = (month?: number, year?: number) => {
         const m = month !== undefined ? month : currentMonth
         const y = year !== undefined ? year : currentYear
-        router.push(`/dashboard?page=1&month=${m}&year=${y}`)
+        router.push(`/dashboard?page=1&month=${m}&year=${y}&search=${encodeURIComponent(searchTerm)}`)
     }
 
     const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
@@ -193,7 +209,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
 
                 return (
                     <div className={`grid gap-6 grid-cols-1 ${totalVisible === 2 ? 'lg:grid-cols-2' :
-                            totalVisible === 3 ? 'md:grid-cols-2 lg:grid-cols-3' : ''
+                        totalVisible === 3 ? 'md:grid-cols-2 lg:grid-cols-3' : ''
                         }`}>
                         {/* Ingresos por Categoría */}
                         {hasIngresos && (
@@ -267,10 +283,20 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                 )
             })()}
 
-            {/* ── Sección Transacciones ── */}
             <div className="space-y-4">
-                <div className="flex flex-wrap justify-between items-center gap-2">
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">Transacciones Recientes</h2>
+                <div className="flex flex-wrap justify-between items-center gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-4 flex-1">
+                        <h2 className="text-xl font-bold text-slate-800 tracking-tight whitespace-nowrap">Transacciones Recientes</h2>
+                        <div className="relative w-full max-w-md">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <Input
+                                placeholder="Buscar por nombre..."
+                                className="pl-10 bg-white border-slate-200 h-10 shadow-sm focus:ring-indigo-500"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                    </div>
 
                     <div className="flex items-center gap-2">
                         {!selectMode ? (
@@ -350,7 +376,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             variant="outline"
                             size="sm"
                             disabled={page <= 1}
-                            onClick={() => router.push(`/dashboard?page=${page - 1}`)}
+                            onClick={() => router.push(`/dashboard?page=${page - 1}&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}`)}
                         >
                             <ChevronLeft className="h-4 w-4 mr-1" />
                             Anterior
@@ -359,7 +385,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             variant="outline"
                             size="sm"
                             disabled={page * 10 >= initialTransactions.count}
-                            onClick={() => router.push(`/dashboard?page=${page + 1}`)}
+                            onClick={() => router.push(`/dashboard?page=${page + 1}&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}`)}
                         >
                             Siguiente
                             <ChevronRight className="h-4 w-4 ml-1" />

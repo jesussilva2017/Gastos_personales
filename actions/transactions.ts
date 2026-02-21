@@ -4,7 +4,7 @@ import { getServerClient, getAdminClient } from "@/lib/supabase"
 import { transactionSchema, type TransactionInput } from "@/lib/validations"
 import { revalidatePath } from "next/cache"
 
-export async function getTransactions(page: number = 1, limit: number = 10, year?: number, month?: number) {
+export async function getTransactions(page: number = 1, limit: number = 10, year?: number, month?: number, search?: string) {
     const supabase = getServerClient()
     const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -28,6 +28,10 @@ export async function getTransactions(page: number = 1, limit: number = 10, year
         const startOfMonth = new Date(year, month, 1).toISOString()
         const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59).toISOString()
         query = query.gte("created_at", startOfMonth).lte("created_at", endOfMonth)
+    }
+
+    if (search) {
+        query = query.ilike("nombre", `%${search}%`)
     }
 
     const { data, count, error } = await query
@@ -104,7 +108,7 @@ export async function getDashboardStats(year?: number, month?: number) {
     const supabase = getServerClient()
     const adminSupabase = getAdminClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return { ingresos: 0, gastos: 0, balance: 0, chartData: [], categoryData: [] }
+    if (!user) return { ingresos: 0, gastos: 0, ahorros: 0, balance: 0, chartData: [], categoryData: [] }
 
     const now = new Date()
     const targetYear = year || now.getFullYear()
