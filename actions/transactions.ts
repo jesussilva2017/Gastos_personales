@@ -184,7 +184,12 @@ export async function getDashboardStats(year?: number, month?: number) {
 
     const categoryData = Object.values(categoryTotals).sort((a, b) => b.total - a.total)
 
-    return { ingresos, gastos, ahorros, balance: ingresos - gastos, chartData, categoryData }
+    const totalTransactions = await adminSupabase
+        .from("transactions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+
+    return { ingresos, gastos, ahorros, balance: ingresos - gastos, chartData, categoryData, totalTransactions: totalTransactions.count || 0 }
 }
 
 export async function copyTransactions(ids: string[], targetYear: number, targetMonth: number) {
