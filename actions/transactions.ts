@@ -163,6 +163,7 @@ export async function getDashboardStats(year?: number, month?: number) {
         nombre: string
         emoji: string
         total: number
+        count: number
         tipo: "ingreso" | "gasto" | "ahorro"
         categoria_id: string | null
     }> = {}
@@ -198,11 +199,13 @@ export async function getDashboardStats(year?: number, month?: number) {
                 nombre: catName,
                 emoji: catEmoji,
                 total: 0,
+                count: 0,
                 tipo: tipo as "ingreso" | "gasto" | "ahorro",
                 categoria_id: catId
             }
         }
         categoryTotals[key].total += valor
+        categoryTotals[key].count += 1
     })
 
     // Format for Recharts bar chart
@@ -234,7 +237,8 @@ export async function getDashboardStats(year?: number, month?: number) {
         balance: ingresos - gastos - ahorros,
         chartData,
         categoryData,
-        totalTransactions: totalTx || 0
+        totalTransactions: totalTx || 0,
+        monthTransactions: allTx || []
     }
 }
 

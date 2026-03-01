@@ -10,12 +10,27 @@ export async function loginAction(data: LoginInput) {
     if (!result.success) return { error: result.error.issues[0].message }
 
     const supabase = getServerClient()
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: { user }, error } = await supabase.auth.signInWithPassword({
         email: data.email,
         password: data.password,
     })
 
     if (error) return { error: error.message }
+
+    if (user) {
+        const adminClient = getAdminClient()
+        const { data: profile } = await adminClient
+            .from('profiles')
+            .select('activo')
+            .eq('id', user.id)
+            .single()
+
+        if (profile && !profile.activo) {
+            await supabase.auth.signOut()
+            return { error: "Tu cuenta está inactiva. Por favor, contacta al administrador." }
+        }
+    }
+
     redirect("/")
 }
 

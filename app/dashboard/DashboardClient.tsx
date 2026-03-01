@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { SummaryCard } from "@/components/cards/SummaryCard"
 import { BarChartComponent } from "@/components/charts/BarChartComponent"
 import { PieChartComponent } from "@/components/charts/PieChartComponent"
@@ -15,7 +15,6 @@ import { toast } from "sonner"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
-import { useEffect } from "react"
 import { cn } from "@/lib/utils"
 
 interface DashboardClientProps {
@@ -25,8 +24,9 @@ interface DashboardClientProps {
         ahorros: number
         balance: number
         chartData: any[]
-        categoryData: { nombre: string; emoji: string; total: number; tipo: "ingreso" | "gasto" | "ahorro"; categoria_id: string | null }[]
+        categoryData: { nombre: string; emoji: string; total: number; count: number; tipo: "ingreso" | "gasto" | "ahorro"; categoria_id: string | null }[]
         totalTransactions: number
+        monthTransactions: any[]
     }
     initialTransactions: {
         data: any[]
@@ -70,27 +70,26 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
     const [copyYear, setCopyYear] = useState(currentYear.toString())
     const [copying, setCopying] = useState(false)
 
+    const [localActiveCategory, setLocalActiveCategory] = useState(activeCategory)
+    const [localPage, setLocalPage] = useState(page)
     const [searchTerm, setSearchTerm] = useState(search || "")
 
-    // Debounce search
+    // Reset local state when month/year (server-side data) changes
     useEffect(() => {
-        const timer = setTimeout(() => {
-            if (searchTerm !== search) {
-                router.push(`/dashboard?page=1&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}`)
-            }
-        }, 500)
-        return () => clearTimeout(timer)
-    }, [searchTerm, currentMonth, currentYear, search, router])
+        setLocalPage(1)
+        setSearchTerm("")
+        setLocalActiveCategory("todas")
+    }, [currentMonth, currentYear])
 
     const handleFilterChange = (month?: number, year?: number) => {
         const m = month !== undefined ? month : currentMonth
         const y = year !== undefined ? year : currentYear
-        // Al cambiar de fecha, resetear categoría a "todas"
-        router.push(`/dashboard?page=1&month=${m}&year=${y}&search=${encodeURIComponent(searchTerm)}&category=todas`)
+        router.push(`/dashboard?page=1&month=${m}&year=${y}`, { scroll: false })
     }
 
     const handleCategoryChange = (categoryId: string) => {
-        router.push(`/dashboard?page=1&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}&category=${categoryId}`)
+        setLocalActiveCategory(categoryId)
+        setLocalPage(1)
     }
 
     const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i)
@@ -173,8 +172,30 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
         })
     const uniqueCategories = Object.values(catMap).sort((a, b) => a.nombre.localeCompare(b.nombre))
 
-    // Las transacciones ya vienen filtradas desde el servidor
-    const filteredTransactions = initialTransactions.data
+    // Filtrado local instantáneo
+    const filteredTransactions = useMemo(() => {
+        let list = stats.monthTransactions || []
+
+        // Filtrar por búsqueda
+        if (searchTerm) {
+            const lowSearch = searchTerm.toLowerCase()
+            list = list.filter(tx => tx.nombre.toLowerCase().includes(lowSearch))
+        }
+
+        // Filtrar por categoría
+        if (localActiveCategory !== "todas") {
+            const catId = localActiveCategory === "__null__" ? null : localActiveCategory
+            list = list.filter(tx => tx.categoria_id === catId)
+        }
+
+        return list
+    }, [stats.monthTransactions, searchTerm, localActiveCategory])
+
+    const paginatedTransactions = useMemo(() => {
+        const from = (localPage - 1) * 10
+        const to = from + 10
+        return filteredTransactions.slice(from, to)
+    }, [filteredTransactions, localPage])
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -255,7 +276,10 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                     {/* ── Fila de Gráficos ── */}
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         <BarChartComponent data={stats.chartData} />
-                        <PieChartComponent data={(stats.categoryData || []).filter(c => c.tipo === "gasto")} />
+                        <PieChartComponent
+                            data={(stats.categoryData || []).filter(c => c.tipo === "gasto")}
+                            title="Gastos por Categoría"
+                        />
                     </div>
 
                     {/* ── Fila de Listas por Categoría (Dinámica) ── */}
@@ -283,7 +307,14 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                                 <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-green-50/50 transition-colors">
                                                     <div className="flex items-center gap-2.5 min-w-0">
                                                         <span className="text-lg leading-none shrink-0">{cat.emoji}</span>
-                                                        <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                                        <div className="flex flex-col truncate">
+                                                            <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                                            {cat.count > 1 && (
+                                                                <span className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                                                    {cat.count} transacciones
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <span className="text-sm font-bold text-green-600 shrink-0 ml-2">
                                                         + $ {cat.total.toLocaleString('es-CO')}
@@ -306,7 +337,14 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                                 <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-rose-50/50 transition-colors">
                                                     <div className="flex items-center gap-2.5 min-w-0">
                                                         <span className="text-lg leading-none shrink-0">{cat.emoji}</span>
-                                                        <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                                        <div className="flex flex-col truncate">
+                                                            <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                                            {cat.count > 1 && (
+                                                                <span className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                                                    {cat.count} transacciones
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <span className="text-sm font-bold text-rose-600 shrink-0 ml-2">
                                                         - $ {cat.total.toLocaleString('es-CO')}
@@ -332,7 +370,14 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                                 <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-indigo-50/50 transition-colors">
                                                     <div className="flex items-center gap-2.5 min-w-0">
                                                         <span className="text-lg leading-none shrink-0">{cat.emoji}</span>
-                                                        <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                                        <div className="flex flex-col truncate">
+                                                            <span className="text-sm font-medium text-slate-700 truncate">{cat.nombre}</span>
+                                                            {cat.count > 1 && (
+                                                                <span className="text-[10px] text-slate-400 font-normal mt-0.5">
+                                                                    {cat.count} transacciones
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                     <span className="text-sm font-bold text-indigo-600 shrink-0 ml-2">
                                                         + $ {cat.total.toLocaleString('es-CO')}
@@ -371,7 +416,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                 onClick={() => { handleCategoryChange("todas"); setSelectedIds(new Set()) }}
                                 className={cn(
                                     "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-all whitespace-nowrap border",
-                                    activeCategory === "todas"
+                                    localActiveCategory === "todas"
                                         ? "bg-slate-800 text-white border-transparent shadow-sm"
                                         : "bg-white border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                                 )}
@@ -382,7 +427,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             {/* Tab por cada categoría única presente en el mes */}
                             {uniqueCategories.map(cat => {
                                 const catIdStr = cat.categoria_id || "__null__"
-                                const isActive = activeCategory === catIdStr
+                                const isActive = localActiveCategory === catIdStr
                                 return (
                                     <button
                                         key={catIdStr}
@@ -465,7 +510,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
 
                         {/* Lista de transacciones */}
                         <div className="grid grid-cols-1 gap-3">
-                            {filteredTransactions.map((tx) => (
+                            {paginatedTransactions.map((tx) => (
                                 <TransactionCard
                                     key={tx.id}
                                     id={tx.id}
@@ -482,7 +527,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                 />
                             ))}
 
-                            {filteredTransactions.length === 0 && (
+                            {paginatedTransactions.length === 0 && (
                                 <div className="text-center py-12 bg-white rounded-xl border border-slate-100 shadow-sm">
                                     <div className="text-3xl mb-2">
                                         {activeCategory === "todas" ? "📋" : "🔍"}
@@ -497,13 +542,13 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             )}
                         </div>
 
-                        {initialTransactions.count > 10 && (
+                        {filteredTransactions.length > 10 && (
                             <div className="flex justify-center space-x-2 pt-2">
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={page <= 1}
-                                    onClick={() => router.push(`/dashboard?page=${page - 1}&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}`)}
+                                    disabled={localPage <= 1}
+                                    onClick={() => setLocalPage(prev => prev - 1)}
                                 >
                                     <ChevronLeft className="h-4 w-4 mr-1" />
                                     Anterior
@@ -511,8 +556,8 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                 <Button
                                     variant="outline"
                                     size="sm"
-                                    disabled={page * 10 >= initialTransactions.count}
-                                    onClick={() => router.push(`/dashboard?page=${page + 1}&month=${currentMonth}&year=${currentYear}&search=${encodeURIComponent(searchTerm)}`)}
+                                    disabled={localPage * 10 >= filteredTransactions.length}
+                                    onClick={() => setLocalPage(prev => prev + 1)}
                                 >
                                     Siguiente
                                     <ChevronRight className="h-4 w-4 ml-1" />

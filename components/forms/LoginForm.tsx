@@ -8,15 +8,24 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useSearchParams } from "next/navigation"
 
 export function LoginForm() {
+    const searchParams = useSearchParams()
     const [loading, setLoading] = useState(false)
     const form = useForm<LoginInput>({
         resolver: zodResolver(loginSchema),
         defaultValues: { email: "", password: "" },
     })
+
+    useEffect(() => {
+        const error = searchParams.get("error")
+        if (error === "account_inactive") {
+            toast.error("Tu cuenta está inactiva. Por favor, contacta al administrador.")
+        }
+    }, [searchParams])
 
     const onSubmit = async (data: LoginInput) => {
         setLoading(true)

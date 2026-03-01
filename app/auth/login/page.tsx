@@ -1,5 +1,6 @@
 import { LoginForm } from "@/components/forms/LoginForm"
 import { ShieldCheck } from "lucide-react"
+import { Suspense } from "react"
 
 export default function LoginPage() {
     return (
@@ -10,7 +11,9 @@ export default function LoginPage() {
                 </div>
                 <h2 className="text-3xl font-extrabold text-slate-900">Finanzas Personales</h2>
             </div>
-            <LoginForm />
+            <Suspense fallback={<div className="text-slate-500">Cargando...</div>}>
+                <LoginForm />
+            </Suspense>
         </div>
     )
 }

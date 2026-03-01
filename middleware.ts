@@ -62,6 +62,13 @@ export async function middleware(request: NextRequest) {
             .single()
 
         const isAdmin = profile?.rol === 'admin'
+        const isInactive = profile?.activo === false
+
+        if (isInactive) {
+            await supabase.auth.signOut()
+            if (isAuthRoute) return response
+            return NextResponse.redirect(new URL('/auth/login?error=account_inactive', request.url))
+        }
 
         // Redirections
         if (isAuthRoute) {

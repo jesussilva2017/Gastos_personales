@@ -8,6 +8,7 @@ interface ChartData {
     name: string
     ingresos: number
     gastos: number
+    ahorros: number
 }
 
 interface BarChartProps {
@@ -18,7 +19,7 @@ export function BarChartComponent({ data }: BarChartProps) {
     return (
         <Card className="col-span-1 shadow-sm">
             <CardHeader>
-                <CardTitle className="text-slate-800 font-semibold tracking-tight">Ingresos vs Gastos por Mes</CardTitle>
+                <CardTitle className="text-slate-800 font-semibold tracking-tight">Ingresos vs Gastos vs Ahorros por Mes</CardTitle>
             </CardHeader>
             <CardContent>
                 <div className="h-[300px] w-full">
@@ -49,11 +50,12 @@ export function BarChartComponent({ data }: BarChartProps) {
                             <Tooltip
                                 cursor={{ fill: "#f8fafc" }}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value: number) => formatCurrency(value)}
+                                formatter={(value: number | undefined) => value !== undefined ? formatCurrency(value) : ""}
                             />
                             <Legend iconType="circle" wrapperStyle={{ paddingTop: '20px' }} />
-                            <Bar dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={50} />
-                            <Bar dataKey="gastos" name="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={50} />
+                            <Bar dataKey="ingresos" name="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            <Bar dataKey="gastos" name="Gastos" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            <Bar dataKey="ahorros" name="Ahorros" fill="#6366f1" radius={[4, 4, 0, 0]} maxBarSize={40} />
                         </BarChart>
                     </ResponsiveContainer>
                 </div>

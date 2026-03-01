@@ -12,6 +12,7 @@ interface CategoryData {
 
 interface PieChartProps {
     data: CategoryData[]
+    title?: string
 }
 
 const COLORS = [
@@ -60,14 +61,16 @@ const CustomLegend = ({ payload }: any) => (
         ))}
     </ul>
 )
-
-export function PieChartComponent({ data }: PieChartProps) {
+export function PieChartComponent({
+    data,
+    title = "Gastos por Categoría"
+}: PieChartProps) {
     if (!data || data.length === 0) {
         return (
             <Card className="col-span-1 shadow-sm">
                 <CardHeader>
                     <CardTitle className="text-slate-800 font-semibold tracking-tight">
-                        Gastos por Categoría
+                        {title}
                     </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -91,7 +94,7 @@ export function PieChartComponent({ data }: PieChartProps) {
         <Card className="col-span-1 shadow-sm">
             <CardHeader>
                 <CardTitle className="text-slate-800 font-semibold tracking-tight">
-                    Gastos por Categoría
+                    {title}
                 </CardTitle>
             </CardHeader>
             <CardContent>
