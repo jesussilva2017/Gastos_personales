@@ -8,12 +8,13 @@ interface TransactionCardProps {
     id: string
     nombre: string
     valor: number
-    tipo: "ingreso" | "gasto" | "ahorro"
+    tipo: "ingreso" | "gasto" | "ahorro" | "pago"
     categoria: {
         nombre: string
         emoji: string
     }
     fecha: string
+    fecha_pago?: string | null
     onEdit: (id: string) => void
     onDelete: (id: string) => void
     selectable?: boolean
@@ -28,6 +29,7 @@ export function TransactionCard({
     tipo,
     categoria,
     fecha,
+    fecha_pago,
     onEdit,
     onDelete,
     selectable = false,
@@ -76,7 +78,11 @@ export function TransactionCard({
                         <div className="flex items-center text-sm text-slate-500 space-x-2 mt-0.5">
                             <span>{categoria?.nombre || "Sin Categoría"}</span>
                             <span>•</span>
-                            <span>{formatDate(fecha)}</span>
+                            <span className={tipo === 'pago' ? 'text-rose-500 font-medium' : ''}>
+                                {tipo === 'pago' && fecha_pago
+                                    ? `Pagar antes de: ${formatDate(fecha_pago)}`
+                                    : formatDate(fecha)}
+                            </span>
                         </div>
                     </div>
                 </div>

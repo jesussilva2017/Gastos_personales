@@ -44,8 +44,9 @@ export type CategoryInput = z.infer<typeof categorySchema>
 export const transactionSchema = z.object({
     nombre: z.string().min(2, "Mínimo 2 caracteres"),
     valor: z.coerce.number().positive("El valor debe ser positivo"),
-    tipo: z.enum(["ingreso", "gasto", "ahorro"]),
+    tipo: z.enum(["ingreso", "gasto", "ahorro", "pago"]),
     categoria_id: z.string().uuid("Seleccione una categoría"),
+    fecha_pago: z.string().optional().nullable(),
 })
 
 export type TransactionInput = z.infer<typeof transactionSchema>

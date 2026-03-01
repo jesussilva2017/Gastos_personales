@@ -30,9 +30,10 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
         resolver: zodResolver(transactionSchema),
         defaultValues: {
             nombre: "",
-            valor: undefined as any,
+            valor: undefined as unknown as number,
             tipo: "gasto",
-            categoria_id: ""
+            categoria_id: "",
+            fecha_pago: null
         },
     })
 
@@ -42,11 +43,12 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
             form.reset({
                 nombre: initialData.nombre,
                 valor: initialData.valor,
-                tipo: initialData.tipo,
+                tipo: initialData.tipo as any,
                 categoria_id: initialData.categoria_id,
+                fecha_pago: initialData.fecha_pago || null
             })
         } else {
-            form.reset({ nombre: "", valor: undefined as any, tipo: "gasto", categoria_id: "" })
+            form.reset({ nombre: "", valor: undefined as any, tipo: "gasto", categoria_id: "", fecha_pago: null })
         }
     }, [editingId, initialData])
 
@@ -65,10 +67,16 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
     const onSubmit = async (data: TransactionInput) => {
         setLoading(true)
         let result
+        // Ensure fecha_pago is null if type is not pago
+        const submissionData = {
+            ...data,
+            fecha_pago: data.tipo === "pago" ? data.fecha_pago : null
+        }
+
         if (editingId) {
-            result = await editTransaction(editingId, data)
+            result = await editTransaction(editingId, submissionData)
         } else {
-            result = await addTransaction(data)
+            result = await addTransaction(submissionData)
         }
 
         if (result?.error) {
@@ -80,6 +88,8 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
         setLoading(false)
     }
 
+    const currentType = form.watch("tipo")
+
     return (
         <Dialog open={defaultOpen} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
@@ -88,55 +98,63 @@ export function TransactionModal({ defaultOpen = false, onOpenChange, editingId,
                 </DialogHeader>
 
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <div className="flex bg-slate-100 p-1.5 rounded-2xl gap-1.5 border border-slate-200/50">
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className={`flex-1 rounded-xl transition-all duration-300 h-11 ${form.watch("tipo") === "ingreso"
-                                ? "bg-white text-green-600 shadow-md ring-1 ring-slate-200"
-                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                                }`}
-                            onClick={() => form.setValue("tipo", "ingreso")}
+                    <div className="space-y-2">
+                        <Label htmlFor="tipo">Tipo de Transacción</Label>
+                        <Select
+                            value={currentType}
+                            onValueChange={(val: any) => form.setValue("tipo", val)}
                         >
-                            <TrendingUp className={`mr-2 h-4 w-4 ${form.watch("tipo") === "ingreso" ? "animate-bounce" : ""}`} />
-                            <span className="font-semibold text-sm">Ingreso</span>
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className={`flex-1 rounded-xl transition-all duration-300 h-11 ${form.watch("tipo") === "gasto"
-                                ? "bg-white text-rose-500 shadow-md ring-1 ring-slate-200"
-                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                                }`}
-                            onClick={() => form.setValue("tipo", "gasto")}
-                        >
-                            <TrendingDown className={`mr-2 h-4 w-4 ${form.watch("tipo") === "gasto" ? "animate-bounce" : ""}`} />
-                            <span className="font-semibold text-sm">Gasto</span>
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            className={`flex-1 rounded-xl transition-all duration-300 h-11 ${form.watch("tipo") === "ahorro"
-                                ? "bg-white text-indigo-600 shadow-md ring-1 ring-slate-200"
-                                : "text-slate-500 hover:text-slate-800 hover:bg-white/50"
-                                }`}
-                            onClick={() => form.setValue("tipo", "ahorro")}
-                        >
-                            <PiggyBank className={`mr-2 h-4 w-4 ${form.watch("tipo") === "ahorro" ? "animate-bounce" : ""}`} />
-                            <span className="font-semibold text-sm">Ahorro</span>
-                        </Button>
+                            <SelectTrigger id="tipo" className="h-11 rounded-xl">
+                                <SelectValue placeholder="Seleccione tipo" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="ingreso">
+                                    <div className="flex items-center text-green-600 font-medium">
+                                        <TrendingUp className="mr-2 h-4 w-4" /> Ingreso
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="gasto">
+                                    <div className="flex items-center text-rose-500 font-medium">
+                                        <TrendingDown className="mr-2 h-4 w-4" /> Gasto
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="ahorro">
+                                    <div className="flex items-center text-indigo-600 font-medium">
+                                        <PiggyBank className="mr-2 h-4 w-4" /> Ahorro
+                                    </div>
+                                </SelectItem>
+                                <SelectItem value="pago">
+                                    <div className="flex items-center text-amber-600 font-medium">
+                                        <TrendingDown className="mr-2 h-4 w-4" /> Pago
+                                    </div>
+                                </SelectItem>
+                            </SelectContent>
+                        </Select>
+                        {form.formState.errors.tipo && <p className="text-red-500 text-sm">{form.formState.errors.tipo.message}</p>}
                     </div>
-                    {form.formState.errors.tipo && <p className="text-red-500 text-sm">{form.formState.errors.tipo.message}</p>}
+
+                    {currentType === "pago" && (
+                        <div className="space-y-2 animate-in slide-in-from-top-2 duration-300">
+                            <Label htmlFor="fecha_pago">Fecha de Pago</Label>
+                            <Input
+                                id="fecha_pago"
+                                type="date"
+                                {...form.register("fecha_pago")}
+                                className="h-11 rounded-xl"
+                            />
+                            {form.formState.errors.fecha_pago && <p className="text-red-500 text-sm">{form.formState.errors.fecha_pago.message}</p>}
+                        </div>
+                    )}
 
                     <div className="space-y-2">
                         <Label htmlFor="nombre">Nombre o Descripción</Label>
-                        <Input id="nombre" {...form.register("nombre")} placeholder="Ej. Supermercado" />
+                        <Input id="nombre" {...form.register("nombre")} placeholder="Ej. Supermercado" className="h-11 rounded-xl" />
                         {form.formState.errors.nombre && <p className="text-red-500 text-sm">{form.formState.errors.nombre.message}</p>}
                     </div>
 
                     <div className="space-y-2">
                         <Label htmlFor="valor">Valor</Label>
-                        <Input id="valor" type="number" step="0.01" {...form.register("valor")} placeholder="Ej. 50000" />
+                        <Input id="valor" type="number" step="0.01" {...form.register("valor")} placeholder="Ej. 50000" className="h-11 rounded-xl" />
                         {form.formState.errors.valor && <p className="text-red-500 text-sm">{form.formState.errors.valor.message}</p>}
                     </div>
 

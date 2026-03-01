@@ -73,6 +73,7 @@ export async function addTransaction(data: TransactionInput) {
         tipo: data.tipo,
         categoria_id: data.categoria_id,
         user_id: user.id,
+        fecha_pago: data.tipo === "pago" ? data.fecha_pago : null,
     })
 
     if (error) return { error: error.message }
@@ -96,6 +97,7 @@ export async function editTransaction(id: string, data: TransactionInput) {
             valor: data.valor,
             tipo: data.tipo,
             categoria_id: data.categoria_id,
+            fecha_pago: data.tipo === "pago" ? data.fecha_pago : null,
         })
         .match({ id, user_id: user.id })
 
@@ -143,6 +145,7 @@ export async function getDashboardStats(year?: number, month?: number) {
             tipo,
             valor,
             categoria_id,
+            fecha_pago,
             categories (
                 nombre,
                 emoji
@@ -151,7 +154,7 @@ export async function getDashboardStats(year?: number, month?: number) {
         .eq("user_id", user.id)
         .gte("created_at", startOfMonth)
         .lte("created_at", endOfMonth)
-        .order("created_at", { ascending: true })
+        .order("created_at", { ascending: false })
         .limit(10000)
 
     let ingresos = 0
@@ -165,7 +168,7 @@ export async function getDashboardStats(year?: number, month?: number) {
         emoji: string
         total: number
         count: number
-        tipo: "ingreso" | "gasto" | "ahorro"
+        tipo: "ingreso" | "gasto" | "ahorro" | "pago"
         categoria_id: string | null
     }> = {}
 
@@ -173,9 +176,9 @@ export async function getDashboardStats(year?: number, month?: number) {
         const valor = Number(tx.valor)
         const tipo: string = tx.tipo
 
-        // Accumulate monthly totals
+        // Accumulate monthly totals — treats pago same as gasto for main summary but tracked separately
         if (tipo === "ingreso") ingresos += valor
-        if (tipo === "gasto") gastos += valor
+        if (tipo === "gasto" || tipo === "pago") gastos += valor
         if (tipo === "ahorro") ahorros += valor
 
         // Build chart data grouped by day
@@ -184,7 +187,7 @@ export async function getDashboardStats(year?: number, month?: number) {
         const label = monthName.charAt(0).toUpperCase() + monthName.slice(1)
         if (!monthlyData[label]) monthlyData[label] = { ingresos: 0, gastos: 0, ahorros: 0 }
         if (tipo === "ingreso") monthlyData[label].ingresos += valor
-        if (tipo === "gasto") monthlyData[label].gastos += valor
+        if (tipo === "gasto" || tipo === "pago") monthlyData[label].gastos += valor
         if (tipo === "ahorro") monthlyData[label].ahorros += valor
 
         // Build category breakdown — key by categoria_id + tipo (reliable, no name collisions)
@@ -201,7 +204,7 @@ export async function getDashboardStats(year?: number, month?: number) {
                 emoji: catEmoji,
                 total: 0,
                 count: 0,
-                tipo: tipo as "ingreso" | "gasto" | "ahorro",
+                tipo: tipo as "ingreso" | "gasto" | "ahorro" | "pago",
                 categoria_id: catId
             }
         }
@@ -220,8 +223,8 @@ export async function getDashboardStats(year?: number, month?: number) {
     // Sort categories: ingresos first by total desc, then gastos, then ahorros
     const categoryData = Object.values(categoryTotals).sort((a, b) => {
         if (a.tipo !== b.tipo) {
-            const order = { ingreso: 0, gasto: 1, ahorro: 2 }
-            return order[a.tipo] - order[b.tipo]
+            const order = { ingreso: 0, pago: 0.5, gasto: 1, ahorro: 2 }
+            return (order[a.tipo] || 10) - (order[b.tipo] || 10)
         }
         return b.total - a.total
     })

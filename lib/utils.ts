@@ -16,6 +16,14 @@ export function formatCurrency(amount: number) {
 }
 
 export function formatDate(dateString: string) {
+  // If it's just a date string (YYYY-MM-DD) like the one from fecha_pago
+  if (dateString.includes("-") && !dateString.includes("T") && dateString.length === 10) {
+    const [year, month, day] = dateString.split("-").map(Number)
+    const date = new Date(year, month - 1, day)
+    return format(date, "dd/MM/yyyy")
+  }
+
+  // Otherwise, handle it as a full ISO date (like created_at)
   const date = new Date(dateString)
   return format(date, "dd/MM/yyyy")
 }

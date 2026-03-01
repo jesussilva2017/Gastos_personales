@@ -24,7 +24,7 @@ interface DashboardClientProps {
         ahorros: number
         balance: number
         chartData: any[]
-        categoryData: { nombre: string; emoji: string; total: number; count: number; tipo: "ingreso" | "gasto" | "ahorro"; categoria_id: string | null }[]
+        categoryData: { nombre: string; emoji: string; total: number; count: number; tipo: "ingreso" | "gasto" | "ahorro" | "pago"; categoria_id: string | null }[]
         totalTransactions: number
         monthTransactions: any[]
     }
@@ -286,8 +286,8 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                     {(() => {
                         const hasIngresos = (stats.categoryData || []).filter(c => c.tipo === "ingreso").length > 0;
                         const hasGastos = (stats.categoryData || []).filter(c => c.tipo === "gasto").length > 0;
-                        const hasAhorros = (stats.categoryData || []).filter(c => c.tipo === "ahorro").length > 0;
-                        const totalVisible = [hasIngresos, hasGastos, hasAhorros].filter(Boolean).length;
+                        const hasPagos = (stats.categoryData || []).filter(c => c.tipo === "pago").length > 0;
+                        const totalVisible = [hasIngresos, hasGastos, hasPagos].filter(Boolean).length;
 
                         if (totalVisible === 0) return null;
 
@@ -355,19 +355,19 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                     </div>
                                 )}
 
-                                {/* Ahorros por Categoría */}
-                                {hasAhorros && (
+                                {/* Pagos por Categoría */}
+                                {hasPagos && (
                                     <div className={cn(
                                         "bg-white rounded-xl border border-slate-100 shadow-sm flex flex-col min-h-[200px]",
                                         totalVisible === 2 ? "col-span-1" : ""
                                     )}>
                                         <div className="px-5 pt-4 pb-3 border-b border-slate-50 flex items-center gap-2">
-                                            <PiggyBank className="h-4 w-4 text-indigo-500 shrink-0" />
-                                            <h3 className="text-slate-800 font-semibold tracking-tight text-sm sm:text-base">Ahorros por Categoría</h3>
+                                            <TrendingDown className="h-4 w-4 text-amber-500 shrink-0" />
+                                            <h3 className="text-slate-800 font-semibold tracking-tight text-sm sm:text-base">Pagos por Categoría</h3>
                                         </div>
                                         <div className="px-3 py-3 space-y-1">
-                                            {(stats.categoryData || []).filter(c => c.tipo === "ahorro").map((cat, i) => (
-                                                <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-indigo-50/50 transition-colors">
+                                            {(stats.categoryData || []).filter(c => c.tipo === "pago").map((cat, i) => (
+                                                <div key={i} className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-amber-50/50 transition-colors">
                                                     <div className="flex items-center gap-2.5 min-w-0">
                                                         <span className="text-lg leading-none shrink-0">{cat.emoji}</span>
                                                         <div className="flex flex-col truncate">
@@ -379,8 +379,8 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                                             )}
                                                         </div>
                                                     </div>
-                                                    <span className="text-sm font-bold text-indigo-600 shrink-0 ml-2">
-                                                        + $ {cat.total.toLocaleString('es-CO')}
+                                                    <span className="text-sm font-bold text-amber-600 shrink-0 ml-2">
+                                                        - $ {cat.total.toLocaleString('es-CO')}
                                                     </span>
                                                 </div>
                                             ))}
@@ -411,7 +411,6 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
 
                         {/* Tabs de categoría registrada */}
                         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                            {/* Tab "Todas" */}
                             <button
                                 onClick={() => { handleCategoryChange("todas"); setSelectedIds(new Set()) }}
                                 className={cn(
@@ -424,7 +423,6 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                 Todas
                             </button>
 
-                            {/* Tab por cada categoría única presente en el mes */}
                             {uniqueCategories.map(cat => {
                                 const catIdStr = cat.categoria_id || "__null__"
                                 const isActive = localActiveCategory === catIdStr
@@ -519,6 +517,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                                     tipo={tx.tipo}
                                     categoria={tx.categories || { nombre: "Sin categoría", emoji: "🏷️" }}
                                     fecha={tx.created_at}
+                                    fecha_pago={tx.fecha_pago}
                                     onEdit={() => handleEditTx(tx.id, tx)}
                                     onDelete={handleDeleteTx}
                                     selectable={selectMode}
@@ -565,6 +564,7 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             </div>
                         )}
                     </div>
+
                 </>
             ) : (
                 <div className="mt-8 bg-white rounded-3xl p-6 sm:p-8 md:p-12 shadow-xl shadow-slate-200/50 border border-slate-100 max-w-4xl mx-auto text-center space-y-6 sm:space-y-8 animate-in zoom-in-95 duration-700">
