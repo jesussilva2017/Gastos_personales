@@ -7,7 +7,7 @@ import { UserModal } from "@/components/modals/UserModal"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Users, UserX, Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Shield, User } from "lucide-react"
+import { Users, UserX, Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Shield, User, AlertTriangle, X } from "lucide-react"
 import { deleteUser, editUser } from "@/actions/users"
 import { toast } from "sonner"
 import { formatDate } from "@/lib/utils"
@@ -25,6 +25,8 @@ export function AdminClient({ stats, initialUsers, page, search }: AdminClientPr
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editingData, setEditingData] = useState<any>(null)
     const [searchValue, setSearchValue] = useState(search)
+    const [deletingUser, setDeletingUser] = useState<any>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
@@ -37,19 +39,20 @@ export function AdminClient({ stats, initialUsers, page, search }: AdminClientPr
         setModalOpen(true)
     }
 
-    const handleDelete = async (id: string, isSelf: boolean) => {
-        if (isSelf) {
-            toast.error("No puedes eliminar tu propia cuenta desde aquí.")
-            return
-        }
-        if (!confirm("Esta acción eliminará permanentemente al usuario y todos sus datos (gastos, categorías). ¿Deseas continuar?")) return
-        const res = await deleteUser(id)
+    const handleDeleteConfirm = async () => {
+        if (!deletingUser) return
+        setIsDeleting(true)
+        const res = await deleteUser(deletingUser.id)
+        setIsDeleting(false)
+        setDeletingUser(null)
         if (res?.error) toast.error(res.error)
-        else toast.success("Usuario eliminado")
+        else {
+            toast.success("Usuario eliminado")
+            router.refresh()
+        }
     }
 
     const toggleActive = async (user: any) => {
-        // Only toggles active
         const res = await editUser(user.id, {
             nombre: user.nombre,
             apellido: user.apellido,
@@ -58,7 +61,10 @@ export function AdminClient({ stats, initialUsers, page, search }: AdminClientPr
             activo: !user.activo,
         })
         if (res?.error) toast.error(res.error)
-        else toast.success(user.activo ? "Usuario deshabilitado" : "Usuario habilitado")
+        else {
+            toast.success(user.activo ? "Usuario deshabilitado" : "Usuario habilitado")
+            router.refresh()
+        }
     }
 
     return (
@@ -126,8 +132,8 @@ export function AdminClient({ stats, initialUsers, page, search }: AdminClientPr
                                         <button
                                             onClick={() => toggleActive(user)}
                                             className={`inline-flex items-center gap-1.5 py-1 px-2.5 rounded-full text-xs font-medium border transition-colors ${user.activo
-                                                    ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
-                                                    : "bg-red-50 text-red-700 border-red-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                                                ? "bg-green-50 text-green-700 border-green-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                                                : "bg-red-50 text-red-700 border-red-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
                                                 }`}
                                             title={user.activo ? "Click para deshabilitar" : "Click para habilitar"}
                                         >
@@ -143,7 +149,7 @@ export function AdminClient({ stats, initialUsers, page, search }: AdminClientPr
                                             <Button variant="ghost" size="icon" onClick={() => handleEdit(user)} className="h-8 w-8 text-slate-500 hover:text-blue-600 hover:bg-blue-50">
                                                 <Edit2 className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" onClick={() => handleDelete(user.id, false)} className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50">
+                                            <Button variant="ghost" size="icon" onClick={() => setDeletingUser(user)} className="h-8 w-8 text-slate-500 hover:text-red-600 hover:bg-red-50">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -193,6 +199,72 @@ export function AdminClient({ stats, initialUsers, page, search }: AdminClientPr
                     editingId={editingId}
                     initialData={editingData}
                 />
+            )}
+
+            {/* Modal de confirmación para eliminar usuario */}
+            {deletingUser && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div
+                        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+                        onClick={() => !isDeleting && setDeletingUser(null)}
+                    />
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto p-6 flex flex-col gap-5 animate-in zoom-in-95 duration-200">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <div className="h-11 w-11 bg-red-100 rounded-full flex items-center justify-center shrink-0">
+                                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-slate-900">Eliminar usuario</h3>
+                                    <p className="text-sm text-slate-500 mt-0.5">{deletingUser.nombre} {deletingUser.apellido}</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => !isDeleting && setDeletingUser(null)}
+                                className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
+
+                        <div className="bg-red-50 border border-red-100 rounded-xl p-4">
+                            <p className="text-sm text-red-700 font-medium">
+                                ⚠️ Esta acción es irreversible
+                            </p>
+                            <p className="text-sm text-red-600 mt-1">
+                                Se eliminará permanentemente al usuario y todos sus datos: transacciones, categorías y configuraciones.
+                            </p>
+                        </div>
+
+                        <div className="flex gap-3">
+                            <Button
+                                variant="outline"
+                                className="flex-1 border-slate-200 text-slate-700"
+                                onClick={() => setDeletingUser(null)}
+                                disabled={isDeleting}
+                            >
+                                Cancelar
+                            </Button>
+                            <Button
+                                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                                onClick={handleDeleteConfirm}
+                                disabled={isDeleting}
+                            >
+                                {isDeleting ? (
+                                    <span className="flex items-center gap-2">
+                                        <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Eliminando...
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        <Trash2 className="h-4 w-4" />
+                                        Eliminar usuario
+                                    </span>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     )
