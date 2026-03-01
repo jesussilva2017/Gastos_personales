@@ -138,6 +138,7 @@ export async function getDashboardStats(year?: number, month?: number) {
         .from("transactions")
         .select(`
             id,
+            nombre,
             created_at,
             tipo,
             valor,

@@ -530,10 +530,10 @@ export function DashboardClient({ stats, initialTransactions, page, currentMonth
                             {paginatedTransactions.length === 0 && (
                                 <div className="text-center py-12 bg-white rounded-xl border border-slate-100 shadow-sm">
                                     <div className="text-3xl mb-2">
-                                        {activeCategory === "todas" ? "📋" : "🔍"}
+                                        {localActiveCategory === "todas" ? "📋" : "🔍"}
                                     </div>
                                     <p className="text-slate-500 text-sm">
-                                        {activeCategory === "todas"
+                                        {localActiveCategory === "todas"
                                             ? "No hay transacciones registradas"
                                             : `No hay transacciones en esta categoría`
                                         }
